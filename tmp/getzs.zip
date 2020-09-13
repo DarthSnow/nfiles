@@ -1,0 +1,24 @@
+#!/bin/bash
+url="$@"
+
+UAGENT='Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US) AppleWebKit/528.16 (KHTML, like Gecko) Version/4.0 Safari/528.16'
+ISNUM='^[0-9]+$'
+ISSERVER='^www[0-9]+$'
+
+server=$(sed -rn 's/https?\:\/\/([^\.]+)\.zippyshare\.com.*/\1/p' <<< $url)
+fileid=$(sed -rn 's/.*zippyshare\.com\/v\/([^\/]+)\/.*/\1/p' <<< $url)
+
+if [[ $server =~ $ISSERVER ]] && [[ $fileid != '' ]]; then
+  html=$(curl -A "$UAGENT" -fsL --compressed "$url")
+  dlbutton=$(sed -rn "s/.*'dlbutton'([^;]+).*/\1/p" <<< $html)
+  num=$(sed -rn "s/.*\/d\/$fileid\/[^0123456789]+([0-9]+).*/\1/p" <<< $dlbutton)
+  filename=$(sed -rn 's/.*\+"\/([^"]+).*/\1/p' <<< $dlbutton)
+  if [[ $num =~ $ISNUM ]] && [[ $filename != '' ]]; then
+    value=$(echo $(( $num%1000+1+2+3+4+5/5 )) | bc)
+    echo "https://$server.zippyshare.com/d/$fileid/$value/$filename"
+  else
+    echo "ERR: cannot get num/filename" >&2; exit 1
+  fi
+else
+  echo "ERR: url" >&2; exit 1
+fi
